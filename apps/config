@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-wave1
+  namespace: demo
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  FEATURE_FLAG: "enabled"
+  WELCOME_TEXT: "hello from wave 1"
