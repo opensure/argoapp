@@ -1,0 +1,61 @@
+# Wave -1: namespace first
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+---
+# Wave 0: config used by the app
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: demo
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  MESSAGE: "hello from wave 0"
+---
+# Wave 0: workload (ready before Service routes)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: demo
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: api } }
+  template:
+    metadata: { labels: { app: api } }
+    spec:
+      containers:
+        - name: api
+          image: nginx:1.25
+          ports: [{ containerPort: 80 }]
+          env:
+            - name: MESSAGE
+              valueFrom:
+                configMapKeyRef: { name: app-config, key: MESSAGE }
+          readinessProbe:
+            httpGet: { path: "/", port: 80 }
+            initialDelaySeconds: 3
+            periodSeconds: 5
+---
+# Wave 1: internal ClusterIP Service (no Ingress)
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: demo
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  type: ClusterIP
+  selector: { app: api }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+# Wave 2: PostSync hook — smoke test the Service from
